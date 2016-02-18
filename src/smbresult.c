@@ -1,10 +1,11 @@
 #include "smbresult.h"
 
 smbresult* createSMBResultEmpty() {
-	return createSMBResult("", "", "", 0, "", 0, 0);
+	return createSMBResult("", "", "", 0, "", 0, 0, 0, 0, 0, 0);
 }
 
-smbresult* createSMBResult(char *host, char *share, char *object, int type, char *acl, unsigned int mode, int statuscode) {
+smbresult* createSMBResult(char *host, char *share, char *object, int type, char *acl, unsigned int mode, 
+        time_t ctime, time_t mtime, time_t atime, int size, int statuscode) {
 	smbresult *tmp = malloc(sizeof(smbresult));
 	tmp->host = strdup(host);
 	tmp->share = strdup(share);
@@ -12,6 +13,10 @@ smbresult* createSMBResult(char *host, char *share, char *object, int type, char
 	tmp->type = type;
 	tmp->acl = acl;
 	tmp->mode = mode;
+    tmp->ctime = ctime;
+    tmp->mtime = mtime;
+    tmp->atime = atime;
+    tmp->size = size;
 	tmp->statuscode = statuscode;
 	return tmp;
 }

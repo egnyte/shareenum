@@ -43,7 +43,7 @@ size_t smbresult_tocsv(smbresult data, char **buf, char *ace);
  * RETURN (smb_result): The result of our run on this host.  Will be aggregated if
  *                recursion is in use.
  */
-static smbresultlist* browse(SMBCCTX *ctx, char *path, int maxdepth, int depth);
+static smbresultlist* browse(SMBCCTX *ctx, char *path, int maxdepth, int depth, int *size);
 
 /* Parse out a smb uri string into its various components.  Should typically be in 
  * the format of: smb://TARGET/SHARE/DIRECTORY/FILE

@@ -18,6 +18,10 @@ typedef struct smbresult {
 	int          type;
 	char*        acl;
 	unsigned int mode;
+    time_t       ctime;
+    time_t       mtime;
+    time_t       atime;
+    int          size;
 	int          statuscode;
 } smbresult;
 
@@ -38,7 +42,8 @@ smbresult* createSMBResultEmpty();
  *   statuscode - The return code for the object, 0 for success and >0 as error codes
  * RETURN (smbresult): A pointer to the smbresult
  */
-smbresult* createSMBResult(char* host, char* share, char* object, int type, char* acl, unsigned int mode, int statuscode);
+smbresult* createSMBResult(char* host, char* share, char* object, int type, char* acl, unsigned int mode,
+        time_t ctime, time_t mtime, time_t atime, int size, int statuscode);
 
 /* So we're typically going to have a large number of results, we'll
  * keep a linked list of our results so we can have a dynamic number.

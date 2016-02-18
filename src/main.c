@@ -152,7 +152,7 @@ int main(int argc, char * argv[]) {
  ************************************************************************************/
 
 	if(startline == 0)                                   //If we're starting at 0, print the headers.  
-		fprintf(outfile, "\"USER\",\"HOST\",\"SHARE\",\"OBJECT\",\"TYPE\",\"PRINCIPAL\",\"NTFS_PERMISSIONS\",\"HIDDEN\"\n");
+		fprintf(outfile, "\"USER\",\"HOST\",\"SHARE\",\"OBJECT\",\"TYPE\",\"CTIME\",\"MTIME\",\"ATIME\",\"SIZE\",\"PRINCIPAL\",\"NTFS_PERMISSIONS\",\"HIDDEN\"\n");
 
 	smbresultlist       *head = NULL;      //Struct to hold the results info
 

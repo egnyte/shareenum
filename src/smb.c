@@ -1,9 +1,12 @@
+#include <time.h>
+
 #include "smb.h"
 
 smbresultlist* runtarget(char *target, int maxdepth) {
 	SMBCCTX         *context;
 	char            buf[256];
 	smbresultlist   *res = NULL;
+    int             total_size;
 
 	//Try to create a context, if it's null that means we failed, so let the user know.
 	if((context = create_context()) == NULL) {
@@ -22,14 +25,14 @@ smbresultlist* runtarget(char *target, int maxdepth) {
 	}
 
 	//Browse to our file and get the goods
-	res = browse(context, buf, maxdepth, 0);
+	res = browse(context, buf, maxdepth, 0, &total_size);
 
 	//Delete our context, so there's less segfaults.
 	delete_context(context);
 	return res;
 }
 
-static smbresultlist* browse(SMBCCTX *ctx, char *path, int maxdepth, int depth) { 
+static smbresultlist* browse(SMBCCTX *ctx, char *path, int maxdepth, int depth, int *dir_size) { 
 	SMBCFILE                *fd;
 	struct smbc_dirent      *dirent;
 
@@ -37,12 +40,14 @@ static smbresultlist* browse(SMBCCTX *ctx, char *path, int maxdepth, int depth) 
 
 	char                    acl[1024] = "";
 	int                     aclret;
+    int                     statuscode;
 
 	char			mode[128] = "";
 	int			moderet;
 
 	smbresultlist           *thisresults = NULL;
 	smbresultlist           *subresults = NULL;
+    struct stat dirent_stat;
 
 
 	//Try and get a directory listing of the object we just opened.
@@ -98,15 +103,34 @@ static smbresultlist* browse(SMBCCTX *ctx, char *path, int maxdepth, int depth) 
 			thisresult->acl = strdup(acl);
 		}
 
-		smbresultlist_push(&thisresults, thisresult);
 
 		//If we have a directory or share we want to recurse to our max depth
 		if(depth < maxdepth) {
 			switch (thisresult->type) {
 				case SMBC_FILE_SHARE:
 				case SMBC_DIR:
-					subresults = browse(ctx, fullpath, maxdepth, depth++);
+                    statuscode = smbc_getFunctionStat(ctx)(ctx, fullpath, &dirent_stat);
+                    if (!statuscode) {
+			            char errbuf[100];
+			            sprintf(errbuf, "Unable to stat (%d): %s", errno, strerror(errno));
+                    }
+                    thisresult->ctime = dirent_stat.st_ctime;
+                    thisresult->mtime = dirent_stat.st_mtime;
+                    thisresult->atime = dirent_stat.st_atime;
+                    thisresult->size = dirent_stat.st_size;
+		            smbresultlist_push(&thisresults, thisresult);
+					subresults = browse(ctx, fullpath, maxdepth, depth++, &(thisresult->size));
 					smbresultlist_merge(&thisresults, &subresults);
+                    break;
+                case SMBC_FILE:
+                    statuscode = smbc_getFunctionStat(ctx)(ctx, fullpath, &dirent_stat);
+                    if (!statuscode) {
+			            char errbuf[100];
+			            sprintf(errbuf, "Unable to stat (%d): %s", errno, strerror(errno));
+                    }
+                    *dir_size += dirent_stat.st_size;
+                    free(thisresult);
+                    break;
 			}
 		}
 	}
@@ -146,13 +170,25 @@ size_t smbresult_tocsv(smbresult data, char **buf, char *ace) {
 			return 0;
 		}
 	}
+    char ctime[sizeof "2011-10-08T07:07:09Z"];
+    char mtime[sizeof "2011-10-08T07:07:09Z"];
+    char atime[sizeof "2011-10-08T07:07:09Z"];
 
+    strftime(ctime, sizeof(ctime), "%FT%TZ", gmtime(&data.ctime));
+    strftime(mtime, sizeof(mtime), "%FT%TZ", gmtime(&data.mtime));
+    strftime(atime, sizeof(atime), "%FT%TZ", gmtime(&data.atime));
+
+    char *parsed_type = parse_type(data.type);
 	//We need to determine the length of our new string
-	size_t size = snprintf(NULL, 0, "\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%c\"", 
+	size_t size = snprintf(NULL, 0, "\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%d\",\"%s\",\"%s\",\"%c\"", 
 		data.host, 
 		data.share, 
 		data.object, 
-		parse_type(data.type),
+        parsed_type,
+        ctime,
+        mtime,
+        atime,
+        data.size,
 		principal,
 		parse_accessmask(amask),
 		hidden
@@ -160,11 +196,15 @@ size_t smbresult_tocsv(smbresult data, char **buf, char *ace) {
 
 	//Otherwise, just a simple sprintf to the buffer the user gave us.
 	char *buffer = malloc(size+1);
-	snprintf(buffer, size+1, "\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%c\"", 
+	snprintf(buffer, size+1, "\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%d\",\"%s\",\"%s\",\"%c\"",
 		data.host, 
 		data.share, 
 		data.object, 
-		parse_type(data.type),
+        parsed_type,
+        ctime,
+        mtime,
+        atime,
+        data.size,
 		principal,
 		parse_accessmask(amask),
 		hidden
